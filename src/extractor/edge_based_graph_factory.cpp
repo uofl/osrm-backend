@@ -39,6 +39,9 @@
 #include <tbb/pipeline.h>
 #include <tbb/task_scheduler_init.h>
 
+#include "util/geojson_debug_logger.hpp"
+#include "util/geojson_debug_policies.hpp"
+
 namespace std
 {
 template <> struct hash<std::pair<NodeID, NodeID>>
@@ -216,6 +219,9 @@ void EdgeBasedGraphFactory::Run(ScriptingEnvironment &scripting_environment,
                                 const ConditionalRestrictionMap &conditional_node_restriction_map,
                                 const WayRestrictionMap &way_restriction_map)
 {
+    util::ScopedGeojsonLoggerGuard<util::CoordinateVectorToLineString,osrm::util::LoggingScenario(0)> old_guard("old_obvious.geojson");
+    util::ScopedGeojsonLoggerGuard<util::CoordinateVectorToLineString,osrm::util::LoggingScenario(1)> guard("new_obvious.geojson");
+
     TIMER_START(renumber);
     m_number_of_edge_based_nodes =
         LabelEdgeBasedNodes() + way_restriction_map.NumberOfDuplicatedNodes();
