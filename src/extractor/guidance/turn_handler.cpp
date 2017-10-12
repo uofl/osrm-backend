@@ -342,9 +342,11 @@ Intersection TurnHandler::handleThreeWayTurn(const EdgeID via_edge, Intersection
 
 Intersection TurnHandler::handleComplexTurn(const EdgeID via_edge, Intersection intersection) const
 {
+    /*
     std::cout << "[intersection]\n";
     for (auto road : intersection)
         std::cout << "\t" << toString(road) << std::endl;
+    */
 
     const std::size_t obvious_index = findObviousTurn(via_edge, intersection);
     const auto obvious_index_old = findObviousTurnOld(via_edge, intersection);

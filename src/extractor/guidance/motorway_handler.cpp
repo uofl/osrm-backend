@@ -205,7 +205,6 @@ Intersection MotorwayHandler::fromMotorway(const EdgeID via_eid, Intersection in
 
                     if (road.angle == continue_angle)
                     {
-                        std::cout << "Motorway continue" << std::endl;
                         road.instruction = getInstructionForObvious(
                             intersection.size(), via_eid, isThroughStreet(1, intersection), road);
                     }
@@ -412,7 +411,6 @@ Intersection MotorwayHandler::fromRamp(const EdgeID via_eid, Intersection inters
         return intersection;
     }
 
-    std::cout << "From Ramp" << std::endl;
     auto num_valid_turns = intersection.countEnterable();
     // ramp straight into a motorway/ramp
     if (intersection.size() == 2 && num_valid_turns == 1)
