@@ -19,6 +19,9 @@
 
 #include <boost/optional.hpp>
 
+#define PRINT false
+//#define PRINT true
+
 namespace osrm
 {
 namespace extractor
@@ -150,9 +153,9 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
     auto const distinct_by_class = [&](auto const &road) {
         auto const &compare_data = node_based_graph.GetEdgeData(road.eid);
 
-        // passing a road of a stricly lower category (e.g. residential driving past driveway,
-        // primary road passing a residential road) but also exiting a freeway onto a primary in the
-        // presence of an alley
+// passing a road of a stricly lower category (e.g. residential driving past driveway,
+// primary road passing a residential road) but also exiting a freeway onto a primary in the
+// presence of an alley
 #if PRINT
         std::cout << "Road classes: " << compare_data.flags.road_classification.GetPriority() << " "
                   << via_edge_data.flags.road_classification.GetPriority() << " "
@@ -163,20 +166,24 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
                                          candidate_data.flags.road_classification)
                   << std::endl;
 #endif
-        if (strictlyLess(compare_data.flags.road_classification, via_edge_data.flags.road_classification) &&
-            strictlyLess(compare_data.flags.road_classification, candidate_data.flags.road_classification))
+        if (strictlyLess(compare_data.flags.road_classification,
+                         via_edge_data.flags.road_classification) &&
+            strictlyLess(compare_data.flags.road_classification,
+                         candidate_data.flags.road_classification))
             return true;
 
-        // passing by a link of the same category
+// passing by a link of the same category
 #if PRINT
-        std::cout << "LinK: "
-                  << isLinkTo(compare_data.flags.road_classification, via_edge_data.flags.road_classification)
-                  << " "
-                  << isLinkTo(compare_data.flags.road_classification, candidate_data.flags.road_classification)
+        std::cout << "LinK: " << isLinkTo(compare_data.flags.road_classification,
+                                          via_edge_data.flags.road_classification)
+                  << " " << isLinkTo(compare_data.flags.road_classification,
+                                     candidate_data.flags.road_classification)
                   << std::endl;
 #endif
-        if (isLinkTo(compare_data.flags.road_classification, via_edge_data.flags.road_classification) &&
-            isLinkTo(compare_data.flags.road_classification, candidate_data.flags.road_classification))
+        if (isLinkTo(compare_data.flags.road_classification,
+                     via_edge_data.flags.road_classification) &&
+            isLinkTo(compare_data.flags.road_classification,
+                     candidate_data.flags.road_classification))
             return true;
 
         // staying on the same road class, encountering a road that is a severe change in class
@@ -195,22 +202,25 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
     // narrow turn, having two choices one of which is forbidden is fine. In case of a end of the
     // road turn, having two directions and not being allowed to turn onto one of them isn't always
     // as clear
-    auto const candidate_deviation =
-        util::angularDeviation(candidate.angle, STRAIGHT_ANGLE);
+    auto const candidate_deviation = util::angularDeviation(candidate.angle, STRAIGHT_ANGLE);
 
-    const auto& via_edge_annotation = node_data_container.GetAnnotation(via_edge_data.annotation_data);
-    const auto& candidate_annotation = node_data_container.GetAnnotation(candidate_data.annotation_data);
-
+    const auto &via_edge_annotation =
+        node_data_container.GetAnnotation(via_edge_data.annotation_data);
+    const auto &candidate_annotation =
+        node_data_container.GetAnnotation(candidate_data.annotation_data);
 
     if (candidate_deviation <= GROUP_ANGLE) // NARROW_TURN_ANGLE)
     {
-        #if PRINT
+#if PRINT
         std::cout << "Narrow" << std::endl;
 #endif
 
         // check if the candidate changes it's name
-        auto const candidate_changes_name = util::guidance::requiresNameAnnounced(
-            via_edge_annotation.name_id, candidate_annotation.name_id, name_table, street_name_suffix_table);
+        auto const candidate_changes_name =
+            util::guidance::requiresNameAnnounced(via_edge_annotation.name_id,
+                                                  candidate_annotation.name_id,
+                                                  name_table,
+                                                  street_name_suffix_table);
 
         // check if there are other narrow turns are not considered passing a low category or simply
         // a link of the same type as the potentially obvious turn
@@ -233,7 +243,8 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
 
             auto const compare_deviation = util::angularDeviation(road.angle, STRAIGHT_ANGLE);
             auto const &compare_data = node_based_graph.GetEdgeData(road.eid);
-            auto const &compare_annotation = node_data_container.GetAnnotation(compare_data.annotation_data);
+            auto const &compare_annotation =
+                node_data_container.GetAnnotation(compare_data.annotation_data);
 
             // if we see a roundabout that is a larger turn, we do not consider it similar. This is
             // related to throughabouts which often are slightly curved on exits:
@@ -267,9 +278,13 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
             // a a + b b
             //     a
             //     a
-            auto const name_changes_onto_compare = util::guidance::requiresNameAnnounced(
-                via_edge_annotation.name_id, compare_annotation.name_id, name_table, street_name_suffix_table);
-            auto const opposing_name = node_data_container.GetAnnotation(opposing_data.annotation_data).name_id;
+            auto const name_changes_onto_compare =
+                util::guidance::requiresNameAnnounced(via_edge_annotation.name_id,
+                                                      compare_annotation.name_id,
+                                                      name_table,
+                                                      street_name_suffix_table);
+            auto const opposing_name =
+                node_data_container.GetAnnotation(opposing_data.annotation_data).name_id;
             auto const name_changes_onto_compare_from_opposing =
                 util::guidance::requiresNameAnnounced(opposing_name,
                                                       compare_annotation.name_id,
@@ -279,9 +294,9 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
             // check if the continuing road takes a turn, and we are turning off it. This is
             // required, sicne we could end up announcing `follow X for 2 miles` and if `X` turns,
             // we would be inclined to do the turn as well, if it isn't crazy (like a sharp turn)
-            auto const continue_turns = !name_changes_onto_compare &&
+            auto const continue_turns = (via_edge_annotation.name_id != EMPTY_NAMEID) && !name_changes_onto_compare &&
                                         (util::angularDeviation(road.angle, opposing_turn->angle) <
-                                             (STRAIGHT_ANGLE - NARROW_TURN_ANGLE) ||
+                                             (STRAIGHT_ANGLE - NARROW_TURN_ANGLE) &&
                                          name_changes_onto_compare_from_opposing) &&
                                         util::angularDeviation(road.angle, 0) > NARROW_TURN_ANGLE;
 #if PRINT
@@ -315,14 +330,18 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
                 std::abs(compare_deviation - candidate_deviation) > minimum_angle_difference;
 
             auto const continue_is_main_class =
-                via_edge_data.flags.road_classification.GetPriority() <= RoadPriorityClass::SECONDARY;
+                via_edge_data.flags.road_classification.GetPriority() <=
+                RoadPriorityClass::SECONDARY;
             if ((!continuing_road_takes_a_turn || !continue_is_main_class) &&
                 roads_deviation_is_distinct)
             {
 #if PRINT
                 std::cout << "Compare ratio fails ("
                           << compare_deviation / (std::max(candidate_deviation, 0.1)) << ", "
-                          << std::abs(compare_deviation - candidate_deviation) << ")" << std::endl;
+                          << std::abs(compare_deviation - candidate_deviation)
+                          << ") Continue turns: " << continuing_road_takes_a_turn
+                          << " Continue is main: " << continue_is_main_class
+                          << " Distinct: " << roads_deviation_is_distinct << std::endl;
 #endif
                 return false;
             }
@@ -349,17 +368,17 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
             auto const compare_has_way_higher_class =
                 (candidate_data.flags.road_classification.GetPriority() ==
                  via_edge_data.flags.road_classification.GetPriority()) &&
-                (std::abs(
-                     static_cast<std::int32_t>(candidate_data.flags.road_classification.GetPriority()) -
-                     static_cast<std::int32_t>(compare_data.flags.road_classification.GetPriority())) >
-                 4);
+                (std::abs(static_cast<std::int32_t>(
+                              candidate_data.flags.road_classification.GetPriority()) -
+                          static_cast<std::int32_t>(
+                              compare_data.flags.road_classification.GetPriority())) > 4);
 
 #if PRINT
             std::cout << " Checking: " << !candidate_changes_name << " && "
-                      << !continuing_road_takes_a_turn << " && (" << compare_has_lower_class << " || "
-                      << compare_has_way_higher_class << " || " << crossing_compare << ") && "
-                      << (compare_deviation / std::max(0.1, candidate_deviation) >
-                          0.7 * DISTINCTION_RATIO)
+                      << !continuing_road_takes_a_turn << " && (" << compare_has_lower_class
+                      << " || " << compare_has_way_higher_class << " || " << crossing_compare
+                      << ") && " << (compare_deviation / std::max(0.1, candidate_deviation) >
+                                     0.7 * DISTINCTION_RATIO)
                       << std::endl;
 #endif
 
@@ -403,7 +422,10 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
     }
     else
     {
-        // deviation is larger than NARROW_TURN_ANGLE0 here for the candidate
+// deviation is larger than NARROW_TURN_ANGLE0 here for the candidate
+#if PRINT
+        std::cout << "Non narrow" << std::endl;
+#endif
 
         // check if there is any turn, that might look just as obvious, even though it might not be
         // allowed. Entry-allowed isn't considered a valid distinction criterion here
@@ -415,7 +437,8 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
             // we do not consider roads of far lesser category to be more obvious
             const auto &compare_data = node_based_graph.GetEdgeData(road.eid);
             /*
-            if (strictlyLess(compare_data.flags.road_classification, candidate_data.flags.road_classification))
+            if (strictlyLess(compare_data.flags.road_classification,
+            candidate_data.flags.road_classification))
             {
                 std::cout << "Road class is strictly less" << std::endl;
                 return false;
@@ -425,7 +448,7 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
             // if the class is just not on the same level
             if (distinct_by_class(road))
             {
-            #if PRINT
+#if PRINT
                 std::cout << "Distinct by class" << std::endl;
 #endif
                 return false;
@@ -438,7 +461,8 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
             // be reasonable as well. When coming down to tertiary and less, road groups are more or
             // less random
             if (util::angularDeviation(road.angle, candidate.angle) < 100 &&
-                via_edge_data.flags.road_classification.GetPriority() <= RoadPriorityClass::SECONDARY &&
+                via_edge_data.flags.road_classification.GetPriority() <=
+                    RoadPriorityClass::SECONDARY &&
                 ((getRoadGroup(via_edge_data.flags.road_classification) !=
                   getRoadGroup(compare_data.flags.road_classification)) &&
                  (via_edge_data.flags.road_classification.GetPriority() ==
@@ -519,7 +543,8 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
 
     // the way we are coming from
     auto const &via_edge_data = node_based_graph.GetEdgeData(via_edge);
-    auto const &via_edge_annotation = node_data_container.GetAnnotation(via_edge_data.annotation_data);
+    auto const &via_edge_annotation =
+        node_data_container.GetAnnotation(via_edge_data.annotation_data);
 
     // implement a filter, taking out all roads of lower class or different names
     auto const continues_on_name_with_higher_class = [&](auto const &road) {
@@ -534,18 +559,20 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
 
         // and we cannot yloose it (roads loosing their name will be handled after this check here)
         auto const &road_data = node_based_graph.GetEdgeData(road.eid);
-        const auto& road_annotation = node_data_container.GetAnnotation(road_data.annotation_data);
+        const auto &road_annotation = node_data_container.GetAnnotation(road_data.annotation_data);
         if (road_annotation.name_id == EMPTY_NAMEID &&
             !road_data.flags.road_classification.IsLowPriorityRoadClass())
             return true;
 
         // if not both of the entries are empty, we do not consider this a continue
-        if ((via_edge_annotation.name_id == EMPTY_NAMEID) ^ (road_annotation.name_id == EMPTY_NAMEID))
+        if ((via_edge_annotation.name_id == EMPTY_NAMEID) ^
+            (road_annotation.name_id == EMPTY_NAMEID))
             return true;
 
         // the priority can only stay the same or increase. We don't consider a primary->residential
         // or residential->service as a continuing road
-        if (strictlyLess(road_data.flags.road_classification, via_edge_data.flags.road_classification))
+        if (strictlyLess(road_data.flags.road_classification,
+                         via_edge_data.flags.road_classification))
             return true;
 
         // filter out link classes to our current class, since they should only be connectivity
@@ -553,8 +580,10 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
             return true;
 
         // most expensive check last (since we filter, we check whether the name changes
-        return util::guidance::requiresNameAnnounced(
-            via_edge_annotation.name_id, road_annotation.name_id, name_table, street_name_suffix_table);
+        return util::guidance::requiresNameAnnounced(via_edge_annotation.name_id,
+                                                     road_annotation.name_id,
+                                                     name_table,
+                                                     street_name_suffix_table);
     };
 
     // check if the current road continues at a given index
@@ -568,13 +597,14 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
     // this check is not part of the main conditions, so that if the turn looks obvious from all
     // other perspectives, a mode change will not result in different classification
     auto const to_index_if_valid = [&](auto const iterator) -> std::size_t {
-        auto const& from_data = node_based_graph.GetEdgeData(via_edge);
-        auto const& to_data = node_based_graph.GetEdgeData(iterator->eid);
+        auto const &from_data = node_based_graph.GetEdgeData(via_edge);
+        auto const &to_data = node_based_graph.GetEdgeData(iterator->eid);
 
-        if( from_data.flags.roundabout != to_data.flags.roundabout )
+        if (from_data.flags.roundabout != to_data.flags.roundabout)
             return 0;
 
-        auto const from_mode = node_data_container.GetAnnotation(from_data.annotation_data).travel_mode;
+        auto const from_mode =
+            node_data_container.GetAnnotation(from_data.annotation_data).travel_mode;
         auto const to_mode = node_data_container.GetAnnotation(to_data.annotation_data).travel_mode;
 
         if (from_mode == to_mode)
@@ -589,6 +619,9 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
         IsDistinctContinue(
             std::distance(intersection.begin(), road_continues_itr), via_edge, intersection))
     {
+#if PRINT
+        std::cout << "Selected " << to_index_if_valid(road_continues_itr) << " as obvious." << std::endl;
+#endif
         return to_index_if_valid(road_continues_itr);
     }
 
@@ -606,7 +639,8 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
             return true;
 
         auto const &road_data = node_based_graph.GetEdgeData(road.eid);
-        if (strictlyLess(road_data.flags.road_classification, via_edge_data.flags.road_classification))
+        if (strictlyLess(road_data.flags.road_classification,
+                         via_edge_data.flags.road_classification))
             return true;
 
         if (isLinkTo(road_data.flags.road_classification, via_edge_data.flags.road_classification))
@@ -628,6 +662,9 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
         IsDistinctTurn(
             std::distance(intersection.begin(), straightmost_turn_itr), via_edge, intersection))
     {
+#if PRINT
+        std::cout << "Selected " << to_index_if_valid(straightmost_turn_itr) << " as obvious." << std::endl;
+#endif
         return to_index_if_valid(straightmost_turn_itr);
     }
 
@@ -652,6 +689,7 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
     std::cout << "Only sharp: " << straight_is_only_non_sharp
               << " Deviation: " << util::angularDeviation(STRAIGHT_ANGLE, straightmost_valid->angle)
               << std::endl;
+    std::cout << "Angle: " << util::angularDeviation(STRAIGHT_ANGLE, straightmost_valid->angle) << " of a maximum of " <<  GROUP_ANGLE << std::endl;
 #endif
 
     if ((straightmost_valid != straightmost_turn_itr) &&
@@ -663,6 +701,9 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
         IsDistinctTurn(
             std::distance(intersection.begin(), straightmost_valid), via_edge, intersection))
     {
+#if PRINT
+        std::cout << "Selected " << to_index_if_valid(straightmost_valid) << " as obvious." << std::endl;
+#endif
         return to_index_if_valid(straightmost_valid);
     }
 
@@ -678,16 +719,21 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
 
     // Special case handling for roads splitting up, all the same name (exactly the same)
     if (intersection.size() == 3 &&
-        std::all_of(intersection.begin(), intersection.end(), [ id = via_edge_annotation.name_id,
-                                                                this ](auto const &road) {
-            auto const data_id = node_based_graph.GetEdgeData(road.eid).annotation_data;
-            return node_data_container.GetAnnotation(data_id).name_id == id;
-        }) &&
+        std::all_of(intersection.begin(),
+                    intersection.end(),
+                    [ id = via_edge_annotation.name_id, this ](auto const &road) {
+                        auto const data_id = node_based_graph.GetEdgeData(road.eid).annotation_data;
+                        auto const name_id = node_data_container.GetAnnotation(data_id).name_id;
+                        return (name_id != EMPTY_NAMEID) && (name_id == id);
+                    }) &&
         intersection.countEnterable() == 1 &&
         // ensure that we do not lookt at a end of the road turn in a segregated intersection
         (util::angularDeviation(intersection[1].angle, 90) > NARROW_TURN_ANGLE ||
          util::angularDeviation(intersection[2].angle, 270) > NARROW_TURN_ANGLE))
     {
+#if PRINT
+        std::cout << "Selected " << to_index_if_valid(straightmost_valid) << " as obvious." << std::endl;
+#endif
         return to_index_if_valid(straightmost_valid);
     }
 

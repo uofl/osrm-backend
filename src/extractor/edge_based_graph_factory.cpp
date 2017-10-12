@@ -147,9 +147,6 @@ NBGToEBG EdgeBasedGraphFactory::InsertEdgeBasedNode(const NodeID node_u, const N
     // There should always be some geometry
     BOOST_ASSERT(0 != segment_count);
 
-    // const unsigned packed_geometry_id = m_compressed_edge_container.ZipEdges(edge_id_1,
-    // edge_id_2);
-
     NodeID current_edge_source_coordinate_id = node_u;
 
     const auto edge_id_to_segment_id = [](const NodeID edge_based_node_id) {

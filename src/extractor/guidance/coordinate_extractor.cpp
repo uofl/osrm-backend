@@ -577,7 +577,6 @@ CoordinateExtractor::GetCoordinatesAlongRoad(const NodeID intersection_node,
     }
     else
     {
-        std::cout << "FWCoordinates..." << std::flush;
         // extracts the geometry in coordinates from the compressed edge container
         std::vector<util::Coordinate> result;
         const auto &geometry = compressed_geometries.GetBucketReference(turn_edge);
@@ -612,7 +611,6 @@ CoordinateExtractor::GetCoordinatesAlongRoad(const NodeID intersection_node,
         // filter duplicated coordinates
         auto end = std::unique(result.begin(), result.end());
         result.erase(end, result.end());
-        std::cout << "Done (" << result.size() << ")" << std::endl;
         return result;
     }
 }

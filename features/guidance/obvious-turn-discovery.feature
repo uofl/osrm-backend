@@ -271,3 +271,22 @@ Feature: Simple Turns
             | d    | c  | rem,rem,rem | depart,continue left,arrive  |
             | c    | d  | rem,rem,rem | depart,continue right,arrive |
             | c    | a  | rem,menz    | depart,arrive                |
+
+    # https://www.openstreetmap.org/#map=19/37.58151/-122.34863
+    Scenario: Straight towards oneway street, Service Category, Unnamed
+        Given the node map
+            """
+            a - - b - - c
+                  |
+                  d
+            """
+
+        And the ways
+            | nodes | highway | name | oneway |
+            | ab    | service |      |        |
+            | cb    | service |      | yes    |
+            | bd    | service |      |        |
+
+        When I route I should get
+            | from | to | route | turns                    |
+            | a    | d  | ,     | depart,turn right,arrive |
