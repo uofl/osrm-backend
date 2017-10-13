@@ -19,8 +19,8 @@
 
 #include <boost/optional.hpp>
 
-#define PRINT false
-//#define PRINT true
+//#define PRINT false
+#define PRINT true
 
 namespace osrm
 {
@@ -246,6 +246,18 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
             auto const &compare_annotation =
                 node_data_container.GetAnnotation(compare_data.annotation_data);
 
+            // in the states, many small side-roads are marked restricted. We could consider them
+            // driveways. Passing by one of these should always be obvious
+            if (candidate_deviation < NARROW_TURN_ANGLE &&
+                (compare_deviation > 1.5 * candidate_deviation) && compare_data.flags.restricted &&
+                !via_edge_data.flags.restricted && !candidate_data.flags.restricted)
+            {
+#if PRINT
+                std::cout << "Not Similar (restricted)" << std::endl;
+#endif
+                return false;
+            }
+
             // if we see a roundabout that is a larger turn, we do not consider it similar. This is
             // related to throughabouts which often are slightly curved on exits:
             //              |
@@ -294,7 +306,8 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
             // check if the continuing road takes a turn, and we are turning off it. This is
             // required, sicne we could end up announcing `follow X for 2 miles` and if `X` turns,
             // we would be inclined to do the turn as well, if it isn't crazy (like a sharp turn)
-            auto const continue_turns = (via_edge_annotation.name_id != EMPTY_NAMEID) && !name_changes_onto_compare &&
+            auto const continue_turns = (via_edge_annotation.name_id != EMPTY_NAMEID) &&
+                                        !name_changes_onto_compare &&
                                         (util::angularDeviation(road.angle, opposing_turn->angle) <
                                              (STRAIGHT_ANGLE - NARROW_TURN_ANGLE) &&
                                          name_changes_onto_compare_from_opposing) &&
@@ -306,28 +319,34 @@ inline bool IntersectionHandler::IsDistinctTurn(const std::size_t index,
 #endif
 
             auto const continuing_road_takes_a_turn = candidate_changes_name && continue_turns;
+            // at least a relative and a maximum difference, if the road name does not turn.
+            // Since we can announce `stay on X for 2 miles, we need to ensure that we announce
+            // turns off it (even if straight). Otherwise people might follow X further than they
+            // should
+            // For roads splitting with the same name, we ask for a larger difference.
+            auto const minimum_angle_difference = FUZZY_ANGLE_DIFFERENCE;
+            /*
+                (via_edge_annotation.name_id != EMPTY_NAMEID && !candidate_changes_name &&
+                 !name_changes_onto_compare)
+                    ? NARROW_TURN_ANGLE
+                    : FUZZY_ANGLE_DIFFERENCE;
+            */
+            auto const roads_deviation_is_distinct =
+                compare_deviation / std::max(0.1, candidate_deviation) > DISTINCTION_RATIO &&
+                std::abs(compare_deviation - candidate_deviation) > minimum_angle_difference;
+
 #if PRINT
             std::cout << "Deviation Check: " << !continuing_road_takes_a_turn << " && "
                       << compare_deviation << " / " << candidate_deviation
                       << " == " << (compare_deviation / std::max(0.1, candidate_deviation))
                       << " -> " << (compare_deviation / std::max(0.1, candidate_deviation) >
                                     DISTINCTION_RATIO)
-                      << " && " << std::abs(compare_deviation - candidate_deviation) << " -> "
+                      << " && " << std::abs(compare_deviation - candidate_deviation) << " > "
+                      << minimum_angle_difference << " -> "
                       << (std::abs(compare_deviation - candidate_deviation) >
-                          FUZZY_ANGLE_DIFFERENCE)
+                          minimum_angle_difference)
                       << std::endl;
 #endif
-            // at least a relative and a maximum difference, if the road name does not turn.
-            // Since we can announce `stay on X for 2 miles, we need to ensure that we announce
-            // turns off it (even if straight). Otherwise people might follow X further than they
-            // should
-            // For roads splitting with the same name, we ask for a larger difference.
-            auto const minimum_angle_difference =
-                (!candidate_changes_name && !name_changes_onto_compare) ? NARROW_TURN_ANGLE
-                                                                        : FUZZY_ANGLE_DIFFERENCE;
-            auto const roads_deviation_is_distinct =
-                compare_deviation / std::max(0.1, candidate_deviation) > DISTINCTION_RATIO &&
-                std::abs(compare_deviation - candidate_deviation) > minimum_angle_difference;
 
             auto const continue_is_main_class =
                 via_edge_data.flags.road_classification.GetPriority() <=
@@ -620,7 +639,8 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
             std::distance(intersection.begin(), road_continues_itr), via_edge, intersection))
     {
 #if PRINT
-        std::cout << "Selected " << to_index_if_valid(road_continues_itr) << " as obvious." << std::endl;
+        std::cout << "Selected " << to_index_if_valid(road_continues_itr) << " as obvious."
+                  << std::endl;
 #endif
         return to_index_if_valid(road_continues_itr);
     }
@@ -663,7 +683,8 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
             std::distance(intersection.begin(), straightmost_turn_itr), via_edge, intersection))
     {
 #if PRINT
-        std::cout << "Selected " << to_index_if_valid(straightmost_turn_itr) << " as obvious." << std::endl;
+        std::cout << "Selected " << to_index_if_valid(straightmost_turn_itr) << " as obvious."
+                  << std::endl;
 #endif
         return to_index_if_valid(straightmost_turn_itr);
     }
@@ -689,7 +710,8 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
     std::cout << "Only sharp: " << straight_is_only_non_sharp
               << " Deviation: " << util::angularDeviation(STRAIGHT_ANGLE, straightmost_valid->angle)
               << std::endl;
-    std::cout << "Angle: " << util::angularDeviation(STRAIGHT_ANGLE, straightmost_valid->angle) << " of a maximum of " <<  GROUP_ANGLE << std::endl;
+    std::cout << "Angle: " << util::angularDeviation(STRAIGHT_ANGLE, straightmost_valid->angle)
+              << " of a maximum of " << GROUP_ANGLE << std::endl;
 #endif
 
     if ((straightmost_valid != straightmost_turn_itr) &&
@@ -702,7 +724,8 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
             std::distance(intersection.begin(), straightmost_valid), via_edge, intersection))
     {
 #if PRINT
-        std::cout << "Selected " << to_index_if_valid(straightmost_valid) << " as obvious." << std::endl;
+        std::cout << "Selected " << to_index_if_valid(straightmost_valid) << " as obvious."
+                  << std::endl;
 #endif
         return to_index_if_valid(straightmost_valid);
     }
@@ -732,7 +755,8 @@ std::size_t IntersectionHandler::findObviousTurn(const EdgeID via_edge,
          util::angularDeviation(intersection[2].angle, 270) > NARROW_TURN_ANGLE))
     {
 #if PRINT
-        std::cout << "Selected " << to_index_if_valid(straightmost_valid) << " as obvious." << std::endl;
+        std::cout << "Selected " << to_index_if_valid(straightmost_valid) << " as obvious."
+                  << std::endl;
 #endif
         return to_index_if_valid(straightmost_valid);
     }
